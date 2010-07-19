@@ -1,0 +1,30 @@
+object FrmMain: TFrmMain
+  Left = 644
+  Height = 82
+  Top = 211
+  Width = 393
+  Caption = 'BTMemoryModule Demo Application'
+  ClientHeight = 82
+  ClientWidth = 393
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  LCLVersion = '0.9.28.2'
+  object BtnFileCall: TButton
+    Left = 40
+    Height = 25
+    Top = 32
+    Width = 131
+    Caption = 'file call'
+    OnClick = BtnFileCallClick
+    TabOrder = 0
+  end
+  object BtnMemCall: TButton
+    Left = 224
+    Height = 25
+    Top = 32
+    Width = 131
+    Caption = 'memory call'
+    OnClick = BtnMemCallClick
+    TabOrder = 1
+  end
+end

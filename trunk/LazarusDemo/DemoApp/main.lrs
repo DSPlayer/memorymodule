@@ -1,0 +1,13 @@
+{ Das ist eine automatisch erzeugte Lazarus-Ressourcendatei }
+
+LazarusResources.Add('TFrmMain','FORMDATA',[
+  'TPF0'#8'TFrmMain'#7'FrmMain'#4'Left'#3#132#2#6'Height'#2'R'#3'Top'#3#211#0#5
+  +'Width'#3#137#1#7'Caption'#6#31'BTMemoryModule Demo Application'#12'ClientHe'
+  +'ight'#2'R'#11'ClientWidth'#3#137#1#8'OnCreate'#7#10'FormCreate'#9'OnDestroy'
+  +#7#11'FormDestroy'#10'LCLVersion'#6#8'0.9.28.2'#0#7'TButton'#11'BtnFileCall'
+  +#4'Left'#2'('#6'Height'#2#25#3'Top'#2' '#5'Width'#3#131#0#7'Caption'#6#9'fil'
+  +'e call'#7'OnClick'#7#16'BtnFileCallClick'#8'TabOrder'#2#0#0#0#7'TButton'#10
+  +'BtnMemCall'#4'Left'#3#224#0#6'Height'#2#25#3'Top'#2' '#5'Width'#3#131#0#7'C'
+  +'aption'#6#11'memory call'#7'OnClick'#7#15'BtnMemCallClick'#8'TabOrder'#2#1#0
+  +#0#0
+]);
