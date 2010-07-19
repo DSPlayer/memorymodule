@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<CONFIG>
+  <Compiler Value="c:\lazarus\fpc\2.2.4\bin\i386-win32\fpc.exe" Date="995711722"/>
+  <Params Value=" -MObjFPC -Scgi -O1 -Xs -vewnhi -l -FiC:\development\lazarus32\BTMemoryModule_0.0.4\LazarusDemo\DemoDll\ -FuC:\development\lazarus32\BTMemoryModule_0.0.4\LazarusDemo\DemoDll\ -Fu. -FEC:\development\lazarus32\BTMemoryModule_0.0.4\LazarusDemo\DemoDll\ -odemodll.dll demodll.lpr"/>
+</CONFIG>

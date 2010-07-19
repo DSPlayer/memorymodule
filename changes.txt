@@ -1,0 +1,26 @@
+BTMemoryModule changes:
+
+============================
+new in 0.0.4:
+============================
+- new helpers added
+- a major code clean up has been done
+- added lazarus free pascal 32bit support
+
+============================
+new in 0.0.3:
+============================
+- added delphi unicode support
+- added unicode example calls
+- removed lazarus version
+
+============================
+new in 0.0.2:
+============================
+- added Lazarus version
+- minor fixes
+
+============================
+new in 0.0.1:
+============================
+- initial release
