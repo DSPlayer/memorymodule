@@ -32,7 +32,7 @@ unit BTMemoryModule;
   @lastmod(Jul 16, 2010)
   @supported operationg systems(Windows 98 up to Windows 7)
   ==============================================================================
-  => this versino should work for all Delphi versions from 7 up to 2010      <=
+  => this version should work for all Delphi versions from 7 up to 2010      <=
   => including on most of Lazaru Free Pascal 32bit releases                  <=
   ==============================================================================
   @tested Delphi compilers(Delphi 7, Delphi 2007 , Delphi 2010)
