@@ -30,7 +30,7 @@ program DemoApp;
 uses
   Forms,
   Main in 'Main.pas' {Form1},
-  BTMemoryModule in '..\..\BTMemoryModule\BTMemoryModule.pas';
+  BTMemoryModule in '..\..\..\BTMemoryModule\BTMemoryModule.pas';
 
 {$R *.res}
 
