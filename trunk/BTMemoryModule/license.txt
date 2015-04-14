@@ -1,15 +1,19 @@
+
 { * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
   * Memory DLL loading code (32bit)                                         *
   *- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
-  * Delphi BTMemoryModule 0.0.4                                             *
-  * Copyright (c) 2005-2010 by Martin Offenwanger / coder@dsplayer.de       *
-  * http://www.dsplayer.de                                                  *
+  * Delphi BTMemoryModule 0.0.4.2                                           *
+  * Copyright (c) 2005-2015 by Martin Offenwanger / coder@dsplayer.com      *
+  * http://www.dsplayer.com                                                 *
   *- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
   * BTMemoryModule originally is a plain pascal port from c code            *
   *- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
   * Original C Code Copyright (c) 2004- 2005 by Joachim Bauch               *
   * mail@joachim-bauch.de                                                   *
   * http://www.joachim-bauch.de/tutorials/loading-a-dll-from-memory/        *
+  *- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
+  * Thanks to Markus_13 (Markus_13@ymail.com) for the SectionFinalization   *
+  * flags contribution.                                                     *
   *- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
   * Mozilla Public License Version 1.1:                                     *
   *- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
@@ -18,23 +22,24 @@
   * not use this file except in compliance with the License. You may        *
   * obtain a copy of the License at                                         *
   * http://www.mozilla.org/MPL/MPL-1.1.html                                 *
-  *                                                                         +
+  *                                                                         *
   * Software distributed under the License is distributed on an             *
   * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or          *
   * implied. See the License for the specific language governing            *
   * rights and limitations under the License.                               *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * }
 {
-  @author(Martin Offenwanger: coder@dsplayer.de)
+  @author(Martin Offenwanger: coder@dsplayer.com)
   @created(Mar 20, 2005)
-  @lastmod(Jul 16, 2010)
-  @supported operationg systems(Windows 98 up to Windows 7)
+  @lastmod(Apr 14, 2015)
+  @supported operationg systems(Windows 98 up to Windows 8)
   ==============================================================================
   => this versino should work for all Delphi versions from 7 up to 2010      <=
   => including on most of Lazaru Free Pascal 32bit releases                  <=
   ==============================================================================
-  @tested Delphi compilers(Delphi 7, Delphi 2007 , Delphi 2010)
-  @tested Free Pascal compilers(Lazarus 0.9.28.2 & Free Pascal 2.2.4)
+  @tested Delphi compilers(Delphi 7, Delphi 2007 , Delphi 2010, Delphi XE2)
+  @tested Free Pascal compilers(Lazarus 0.9.28.2 & Free Pascal 2.2.4 ,
+                                Lazarus 1.2.6 & Free Pascal 2.6.4)
 }
 
 

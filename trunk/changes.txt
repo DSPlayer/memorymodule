@@ -1,6 +1,14 @@
 BTMemoryModule changes:
 
 ============================
+new in 0.0.42:
+============================
+- added unicode support
+- added optional SectionProtection Flags
+- Fixed DecP isuue in Sectionheader Loop
+- Module runs now on Systems with DEP (Data Execution Prevention) 
+
+============================
 new in 0.0.4:
 ============================
 - new helpers added

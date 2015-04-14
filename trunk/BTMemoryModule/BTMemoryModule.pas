@@ -3,15 +3,18 @@ unit BTMemoryModule;
 { * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
   * Memory DLL loading code (32bit)                                         *
   *- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
-  * Delphi BTMemoryModule 0.0.4                                             *
-  * Copyright (c) 2005-2010 by Martin Offenwanger / coder@dsplayer.de       *
-  * http://www.dsplayer.de                                                  *
+  * Delphi BTMemoryModule 0.0.4.2                                           *
+  * Copyright (c) 2005-2015 by Martin Offenwanger / coder@dsplayer.com      *
+  * http://www.dsplayer.com                                                 *
   *- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
   * BTMemoryModule originally is a plain pascal port from c code            *
   *- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
   * Original C Code Copyright (c) 2004- 2005 by Joachim Bauch               *
   * mail@joachim-bauch.de                                                   *
   * http://www.joachim-bauch.de/tutorials/loading-a-dll-from-memory/        *
+  *- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
+  * Thanks to Markus_13 (Markus_13@ymail.com) for the SectionFinalization   *
+  * flags contribution.                                                     *
   *- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
   * Mozilla Public License Version 1.1:                                     *
   *- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*
@@ -20,32 +23,38 @@ unit BTMemoryModule;
   * not use this file except in compliance with the License. You may        *
   * obtain a copy of the License at                                         *
   * http://www.mozilla.org/MPL/MPL-1.1.html                                 *
-  *                                                                         +
+  *                                                                         *
   * Software distributed under the License is distributed on an             *
   * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or          *
   * implied. See the License for the specific language governing            *
   * rights and limitations under the License.                               *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * }
 {
-  @author(Martin Offenwanger: coder@dsplayer.de)
+  @author(Martin Offenwanger: coder@dsplayer.com)
   @created(Mar 20, 2005)
-  @lastmod(Jul 16, 2010)
-  @supported operationg systems(Windows 98 up to Windows 7)
+  @lastmod(Apr 14, 2015)
+  @supported operationg systems(Windows 98 up to Windows 8)
   ==============================================================================
-  => this version should work for all Delphi versions from 7 up to 2010      <=
+  => this versino should work for all Delphi versions from 7 up to 2010      <=
   => including on most of Lazaru Free Pascal 32bit releases                  <=
   ==============================================================================
-  @tested Delphi compilers(Delphi 7, Delphi 2007 , Delphi 2010)
-  @tested Free Pascal compilers(Lazarus 0.9.28.2 & Free Pascal 2.2.4)
+  @tested Delphi compilers(Delphi 7, Delphi 2007 , Delphi 2010, Delphi XE2)
+  @tested Free Pascal compilers(Lazarus 0.9.28.2 & Free Pascal 2.2.4 ,
+                                Lazarus 1.2.6 & Free Pascal 2.6.4)
 }
-{$WARN UNSAFE_CODE OFF}
-{$WARN UNSAFE_TYPE OFF}
-{$WARN UNSAFE_CAST OFF}
+
+{$IFDEF FPC}
+  {$WARNINGS OFF}
+  {$HINTS OFF}
+{$ELSE FPC}
+  {$WARN UNSAFE_CODE OFF}
+  {$WARN UNSAFE_TYPE OFF}
+  {$WARN UNSAFE_CAST OFF}
+{$ENDIF FPC}
 
 interface
 
 uses
-  // Borland Run-time Library
   Windows;
 
 { ++++++++++++++++++++++++++++++++++++++
@@ -68,13 +77,30 @@ type
 {$EXTERNALSYM BT_MEMORY_MODULE}
   PUInt64 = ^UInt64;
 
+{ +++++++++++++++++++++++++++++++++++
+  ***  SectionFinalization Flags  ***
+  ----------------------------------- }
+  TSFFlag = Byte;
+const
+  SF_NOFIN = $0;          // no SectionFinalization
+{$EXTERNALSYM SF_NOFIN}
+  SF_PROTECT = $1;       // SectionFinalization with VirtualProtect
+{$EXTERNALSYM SF_PROTECT}
+  SF_DISCARD = $10;      // SectionFinalization with Discard
+{$EXTERNALSYM SF_DISCARD}
+  SF_BOTH = $11;      // FIN_PROTECT + FIN_DISCARD
+{$EXTERNALSYM SF_BOTH}
+
+
   { ++++++++++++++++++++++++++++++++++++++++++++++++++
     ***  Memory DLL loading functions Declaration  ***
     -------------------------------------------------- }
 
   // return value is nil if function fails
-function BTMemoryLoadLibary(fp_data: Pointer;
-  const f_size: int64): PBTMemoryModule;
+function BTMemoryLoadLibary(fp_data: Pointer; const f_size: int64;
+  f_SectionFinalization: TSFFlag = SF_BOTH;
+  f_DllProcessAttach: Boolean = True): PBTMemoryModule;
+
 // return value is nil if function fails
 function BTMemoryGetProcAddress(fp_module: PBTMemoryModule;
   const fp_name: PChar): Pointer;
@@ -86,7 +112,6 @@ function BTMemoryGetLastError: string;
 implementation
 
 uses
-  // Borland Run-time Library
   SysUtils;
 
 { +++++++++++++++++++++++++++++++++++
@@ -219,6 +244,7 @@ type
   IMAGE_IMPORT_BY_NAME = _IMAGE_IMPORT_BY_NAME;
 {$EXTERNALSYM IMAGE_IMPORT_BY_NAME}
 
+
 const
   IMAGE_SIZEOF_BASE_RELOCATION = 8;
 {$EXTERNALSYM IMAGE_SIZEOF_BASE_RELOCATION}
@@ -252,6 +278,8 @@ const
 {$EXTERNALSYM IMAGE_SCN_CNT_UNINITIALIZED_DATA}
   IMAGE_DIRECTORY_ENTRY_EXPORT = 0;
 {$EXTERNALSYM IMAGE_DIRECTORY_ENTRY_EXPORT}
+
+
 
 var
   lastErrStr: string;
@@ -358,7 +386,8 @@ begin
       if l_size > 0 then
       begin
         lp_dest := VirtualAlloc(IncF(fp_module^.codeBase,
-            lp_section^.VirtualAddress), l_size, MEM_COMMIT, PAGE_READWRITE);
+            lp_section^.VirtualAddress), l_size, MEM_COMMIT,
+            PAGE_EXECUTE_READWRITE);
         lp_section^.Misc.PhysicalAddress := UInt64(lp_dest);
         ZeroMemory(lp_dest, l_size);
       end;
@@ -369,7 +398,7 @@ begin
     // commit memory block and copy data from dll
     lp_dest := VirtualAlloc(IncF(fp_module^.codeBase,
         lp_section^.VirtualAddress), lp_section^.SizeOfRawData,
-      MEM_COMMIT, PAGE_READWRITE);
+      MEM_COMMIT, PAGE_EXECUTE_READWRITE);
     CopyMemory(lp_dest, IncF(fp_data, lp_section^.PointerToRawData),
       lp_section^.SizeOfRawData);
     lp_section^.Misc.PhysicalAddress := UInt64(lp_dest);
@@ -447,7 +476,7 @@ begin
       if fp_module^.modules = nil then
         fp_module^.modules := AllocMem(1);
       fp_module^.modules := ReallocMemory(fp_module^.modules,
-        ((fp_module^.numModules + 1) * (SizeOf(HMODULE))));
+        ((fp_module^.numModules + 1) * (SizeOf(UInt64))));
       if fp_module^.modules = nil then
       begin
         lastErrStr := 'BuildImportTable: ReallocMemory failed';
@@ -455,7 +484,7 @@ begin
         exit;
       end;
       // module->modules[module->numModules++] = handle;
-      l_temp := (SizeOf(Cardinal) * (fp_module^.numModules));
+      l_temp := (SizeOf(UInt64) * (fp_module^.numModules));
       IncP(fp_module^.modules, l_temp);
       UInt64(fp_module^.modules^) := l_handle;
       DecP(fp_module^.modules, l_temp);
@@ -527,61 +556,66 @@ begin
           Result := Result or PAGE_NOACCESS;
 end;
 
-procedure FinalizeSections(fp_module: PBTMemoryModule); stdcall;
+procedure FinalizeSections(fp_module: PBTMemoryModule;
+  f_SectionFinalization: TSFFlag); stdcall;
 var
   l_i: Integer;
   lp_section: PImageSectionHeader;
   l_protect, l_oldProtect, l_size: Cardinal;
 begin
   lp_section := GetImageFirstSection(fp_module^.headers);
+
   for l_i := 0 to fp_module^.headers^.FileHeader.NumberOfSections - 1 do
   begin
 
-    if (lp_section^.Characteristics and IMAGE_SCN_MEM_DISCARDABLE) <> 0 then
+    if ((f_SectionFinalization and SF_DISCARD) <> 0) and
+      ((lp_section^.Characteristics and IMAGE_SCN_MEM_DISCARDABLE) <> 0) then
     begin
       // section is not needed any more and can safely be freed
       VirtualFree(Pointer(lp_section^.Misc.PhysicalAddress),
         lp_section^.SizeOfRawData, MEM_DECOMMIT);
-      DecP(lp_section, SizeOf(TImageSectionHeader));
-      // run next for loop interation...
+      IncP(lp_section, SizeOf(TImageSectionHeader));
       Continue;
     end;
 
-    l_protect := GetSectionProtection(lp_section^.Characteristics);
-    if (lp_section^.Characteristics and IMAGE_SCN_MEM_NOT_CACHED) <> 0 then
-      l_protect := (l_protect or PAGE_NOCACHE);
-
-    // determine size of region
-    l_size := lp_section^.SizeOfRawData;
-    if l_size = 0 then
+    if ((f_SectionFinalization and SF_PROTECT) <> 0) and
+      ((lp_section^.Characteristics and IMAGE_SCN_MEM_DISCARDABLE)=0) then
     begin
-      if (lp_section^.Characteristics and IMAGE_SCN_CNT_INITIALIZED_DATA)
-        <> 0 then
+      l_protect := GetSectionProtection(lp_section^.Characteristics);
+      if (lp_section^.Characteristics and IMAGE_SCN_MEM_NOT_CACHED) <> 0 then
+        l_protect := (l_protect or PAGE_NOCACHE);
+      // determine size of region
+      l_size := lp_section^.SizeOfRawData;
+      if l_size = 0 then
       begin
-        l_size := fp_module^.headers^.OptionalHeader.SizeOfInitializedData;
-      end
-      else
-      begin
-        if (lp_section^.Characteristics and IMAGE_SCN_CNT_UNINITIALIZED_DATA)
+        if (lp_section^.Characteristics and IMAGE_SCN_CNT_INITIALIZED_DATA)
           <> 0 then
-          l_size := fp_module^.headers^.OptionalHeader.SizeOfUninitializedData;
-      end;
-      if l_size > 0 then
-      begin
-        if not VirtualProtect(Pointer(lp_section^.Misc.PhysicalAddress),
-          lp_section^.SizeOfRawData, l_protect, @l_oldProtect) then
         begin
-          lastErrStr := 'FinalizeSections: VirtualProtect failed';
-          exit;
+          l_size := fp_module^.headers^.OptionalHeader.SizeOfInitializedData;
+        end else begin
+          if (lp_section^.Characteristics and IMAGE_SCN_CNT_UNINITIALIZED_DATA)
+            <> 0 then
+            l_size := fp_module^.headers^.OptionalHeader.SizeOfUninitializedData;
+        end;
+        if l_size > 0 then
+        begin
+          if not VirtualProtect(Pointer(lp_section^.Misc.PhysicalAddress),
+            lp_section^.SizeOfRawData, l_protect, @l_oldProtect) then
+          begin
+            lastErrStr := 'FinalizeSections: VirtualProtect failed';
+            exit;
+          end;
         end;
       end;
     end;
+
     IncP(lp_section, SizeOf(TImageSectionHeader));
   end;
 end;
 
-function BTMemoryLoadLibary(fp_data: Pointer;
-  const f_size: int64): PBTMemoryModule;
+function BTMemoryLoadLibary(fp_data: Pointer; const f_size: int64;
+  f_SectionFinalization: TSFFlag = SF_BOTH;
+  f_DllProcessAttach: Boolean = True): PBTMemoryModule;
 var
   lp_result: PBTMemoryModule;
   l_dos_header: TImageDosHeader;
@@ -609,11 +643,12 @@ begin
     end;
     // reserve memory for image of library
     l_code := VirtualAlloc(Pointer(l_old_header.OptionalHeader.ImageBase),
-      l_old_header.OptionalHeader.SizeOfImage, MEM_RESERVE, PAGE_READWRITE);
+      l_old_header.OptionalHeader.SizeOfImage, MEM_RESERVE,
+      PAGE_EXECUTE_READWRITE);
     if l_code = nil then
       // try to allocate memory at arbitrary position
       l_code := VirtualAlloc(nil, l_old_header.OptionalHeader.SizeOfImage,
-        MEM_RESERVE, PAGE_READWRITE);
+        MEM_RESERVE, PAGE_EXECUTE_READWRITE);
     if l_code = nil then
     begin
       lastErrStr := 'BTMemoryLoadLibary: VirtualAlloc failed';
@@ -629,10 +664,11 @@ begin
     // xy: is it correct to commit the complete memory region at once?
     // calling DllEntry raises an exception if we don't...
     VirtualAlloc(l_code, l_old_header.OptionalHeader.SizeOfImage, MEM_COMMIT,
-      PAGE_READWRITE);
+      PAGE_EXECUTE_READWRITE);
     // commit memory for headers
     l_headers := VirtualAlloc(l_code,
-      l_old_header.OptionalHeader.SizeOfHeaders, MEM_COMMIT, PAGE_READWRITE);
+      l_old_header.OptionalHeader.SizeOfHeaders, MEM_COMMIT,
+      PAGE_EXECUTE_READWRITE);
     // copy PE header to code
     CopyMemory(l_headers, fp_data,
       (UInt64(l_dos_header._lfanew)
@@ -656,7 +692,7 @@ begin
     end;
     // mark memory pages depending on section headers and release
     // sections that are marked as "discardable"
-    FinalizeSections(lp_result);
+    FinalizeSections(lp_result, f_SectionFinalization);
     // get entry point of loaded library
     if (lp_result^.headers^.OptionalHeader.AddressOfEntryPoint) <> 0 then
     begin
@@ -668,12 +704,14 @@ begin
         lastErrStr := 'BTMemoryLoadLibary: Get DLLEntyPoint failed';
         Abort;
       end;
-      l_successfull := TDllEntryProc(lp_DllEntry)(UInt64(l_code),
-        DLL_PROCESS_ATTACH, nil);
-      if not l_successfull then
-      begin
-        lastErrStr := 'BTMemoryLoadLibary: Can''t attach library';
-        Abort;
+      if f_DllProcessAttach then begin
+        l_successfull := TDllEntryProc(lp_DllEntry)(UInt64(l_code),
+          DLL_PROCESS_ATTACH, nil);
+        if not l_successfull then
+        begin
+          lastErrStr := 'BTMemoryLoadLibary: Can''t attach library';
+          Abort;
+        end;
       end;
       lp_result^.initialized := true;
     end;
@@ -759,7 +797,7 @@ begin
       // free previously opened libraries
       for l_i := 0 to lp_module^.numModules - 1 do
       begin
-        l_temp := (SizeOf(Cardinal) * (l_i));
+        l_temp := (SizeOf(UInt64) * (l_i));
         IncP(lp_module^.modules, l_temp);
         if UInt64(fp_module^.modules^) <> INVALID_HANDLE_VALUE then
           FreeLibrary(UInt64(fp_module^.modules^));
