@@ -244,7 +244,14 @@ type
   IMAGE_IMPORT_BY_NAME = _IMAGE_IMPORT_BY_NAME;
 {$EXTERNALSYM IMAGE_IMPORT_BY_NAME}
 
-
+ TPRawChar = array[0..2047] of WideChar;
+{$EXTERNALSYM IMAGE_IMPORT_BY_NAME}
+ TSectionInfo = packed record
+ Addr:Pointer;
+ Size:DWORD;
+ end;
+ TSectionList = array of TSectionInfo;
+{$EXTERNALSYM IMAGE_IMPORT_BY_NAME}
 const
   IMAGE_SIZEOF_BASE_RELOCATION = 8;
 {$EXTERNALSYM IMAGE_SIZEOF_BASE_RELOCATION}
@@ -283,7 +290,7 @@ const
 
 var
   lastErrStr: string;
-
+  SectionList:TSectionList;
   { +++++++++++++++++++++++++++++++++++++++++++++++++++++
     ***  Memory DLL loading functions Implementation  ***
     ----------------------------------------------------- }
@@ -330,13 +337,31 @@ begin
   end;
 end;
 
-function PAnsiCharToPChar(f_X: Pointer): PChar;
-begin
+//function PAnsiCharToPChar(f_X: Pointer): PChar;
+//begin
+//{$IFDEF UNICODE}
+//  Result := StringToOleStr(PAnsiChar(f_X));
+//{$ELSE}
+//  Result := PAnsiChar(f_X);
+//{$ENDIF}
+//end;
+
+procedure PAnsiCharToPChar(f_X: Pointer;Var f_Y:TPRawChar);
+const
 {$IFDEF UNICODE}
-  Result := StringToOleStr(PAnsiChar(f_X));
+Size:Integer = 2;
 {$ELSE}
-  Result := PAnsiChar(f_X);
+Size:Integer = 1;
 {$ENDIF}
+var
+I:Integer;
+begin
+ FillChar(f_Y,sizeof(f_Y),#0);
+ for I := Low(f_Y) to High(f_Y)  do
+ begin
+     PByte(PByte(@f_Y[0])+ I*Size)^ := PByte(PByte(f_X) + I)^;
+     if PByte(PByte(f_X) + I)^ = 0 then Exit;
+ end;
 end;
 
 function GetFieldOffset(const Struc; const Field): Cardinal;
@@ -376,6 +401,7 @@ var
   lp_section: PImageSectionHeader;
 begin
   lp_section := GetImageFirstSection(fp_module^.headers);
+  SetLength(SectionList,fp_module^.headers^.FileHeader.NumberOfSections);
   for l_i := 0 to fp_module^.headers^.FileHeader.NumberOfSections - 1 do
   begin
     // section doesn't contain data in the dll itself, but may define
@@ -388,21 +414,26 @@ begin
         lp_dest := VirtualAlloc(IncF(fp_module^.codeBase,
             lp_section^.VirtualAddress), l_size, MEM_COMMIT,
             PAGE_EXECUTE_READWRITE);
+        SectionList[l_i].Addr:=lp_dest;
+        SectionList[l_i].Size:=l_size;
         lp_section^.Misc.PhysicalAddress := UInt64(lp_dest);
         ZeroMemory(lp_dest, l_size);
       end;
       IncP(lp_section, SizeOf(TImageSectionHeader));
-      // Continue with the nex loop
-      Continue;
-    end;
+    end
+    else
+    begin
     // commit memory block and copy data from dll
     lp_dest := VirtualAlloc(IncF(fp_module^.codeBase,
         lp_section^.VirtualAddress), lp_section^.SizeOfRawData,
       MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+      SectionList[l_i].Addr:=lp_dest;
+      SectionList[l_i].Size:=lp_section^.SizeOfRawData;
     CopyMemory(lp_dest, IncF(fp_data, lp_section^.PointerToRawData),
       lp_section^.SizeOfRawData);
     lp_section^.Misc.PhysicalAddress := UInt64(lp_dest);
     IncP(lp_section, SizeOf(TImageSectionHeader));
+    end;
   end;
 end;
 
@@ -453,6 +484,7 @@ var
   l_handle: HMODULE;
   l_temp: Integer;
   l_thunkData: TImageImportByName;
+  s_temp:TPRawChar;
 begin
   Result := true;
   lp_directory := GetHeaderDictionary(fp_module, IMAGE_DIRECTORY_ENTRY_IMPORT);
@@ -462,13 +494,18 @@ begin
     while (not IsBadReadPtr(lp_importDesc, SizeOf(TImageImportDescriptor))) and
       (lp_importDesc^.Name <> 0) do
     begin
-      l_handle := LoadLibrary(PAnsiCharToPChar(IncF(fp_module^.codeBase,
-            lp_importDesc^.Name)));
+      PAnsiCharToPChar(IncF(fp_module^.codeBase,lp_importDesc^.Name),s_temp);
+      l_handle := LoadLibrary(
+      PChar(@s_temp[0])
+            );
       if (l_handle = INVALID_HANDLE_VALUE) then
       begin
+        PAnsiCharToPChar((IncF(fp_module^.codeBase, lp_importDesc^.Name)),s_temp);
         lastErrStr :=
-          'BuildImportTable: can''t load library: ' + PAnsiCharToPChar
-          (IncF(fp_module^.codeBase, lp_importDesc^.Name));
+          (
+          'BuildImportTable: can''t load library: ' +
+          PChar(@s_temp[0])
+          );
         Result := false;
         exit;
       end;
@@ -522,12 +559,12 @@ begin
 end;
 
 function GetSectionProtection(f_SC: Cardinal): Cardinal; stdcall;
-// SC – ImageSectionHeader.Characteristics
+// SC ?ImageSectionHeader.Characteristics
 begin
   Result := 0;
   if (f_SC and IMAGE_SCN_MEM_NOT_CACHED) <> 0 then
     Result := Result or PAGE_NOCACHE;
-  // E - Execute, R – Read , W – Write
+  // E - Execute, R ?Read , W ?Write
   if (f_SC and IMAGE_SCN_MEM_EXECUTE) <> 0 // E ?
     then
     if (f_SC and IMAGE_SCN_MEM_READ) <> 0 // ER ?
@@ -731,6 +768,7 @@ var
   l_ordinal: PWord;
   l_exports: PImageExportDirectory;
   l_directory: PImageDataDirectory;
+  s_temp:TPRawChar;
 begin
   Result := nil;
   l_idx := -1;
@@ -751,7 +789,10 @@ begin
   l_ordinal := IncF(fp_module^.codeBase, l_exports^.ADDressOfNameOrdinals);
   for l_i := 0 to l_exports^.NumberOfNames - 1 do
   begin
-    if StrComp(fp_name, PAnsiCharToPChar(IncF(fp_module^.codeBase, l_nameRef^))
+    PAnsiCharToPChar((IncF(fp_module^.codeBase, l_nameRef^)),s_temp);
+    if StrComp(
+    fp_name,
+     PChar(@s_temp[0])
       ) = 0 then
     begin
       l_idx := l_ordinal^;
@@ -810,6 +851,14 @@ begin
       HeapFree(GetProcessHeap(), 0, fp_module);
       Pointer(fp_module) := nil;
     end;
+    for l_i := Low(SectionList) to High(SectionList) do
+    begin
+      if SectionList[l_i].Addr <> nil then
+      begin
+        VirtualFree(SectionList[l_i].Addr,SectionList[l_i].Size,MEM_RELEASE);
+      end;
+    end;
+
   end;
 end;
 
