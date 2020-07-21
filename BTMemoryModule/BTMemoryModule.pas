@@ -245,13 +245,13 @@ type
 {$EXTERNALSYM IMAGE_IMPORT_BY_NAME}
 
  TPRawChar = array[0..2047] of WideChar;
-{$EXTERNALSYM IMAGE_IMPORT_BY_NAME}
+
  TSectionInfo = packed record
  Addr:Pointer;
  Size:DWORD;
  end;
  TSectionList = array of TSectionInfo;
-{$EXTERNALSYM IMAGE_IMPORT_BY_NAME}
+
 const
   IMAGE_SIZEOF_BASE_RELOCATION = 8;
 {$EXTERNALSYM IMAGE_SIZEOF_BASE_RELOCATION}
